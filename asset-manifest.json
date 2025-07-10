@@ -1,15 +1,15 @@
 {
   "files": {
-    "main.css": "/mqtt-react-demo/static/css/main.a1bf936a.css",
-    "main.js": "/mqtt-react-demo/static/js/main.43b267bf.js",
-    "static/js/453.72ec56a4.chunk.js": "/mqtt-react-demo/static/js/453.72ec56a4.chunk.js",
-    "index.html": "/mqtt-react-demo/index.html",
-    "main.a1bf936a.css.map": "/mqtt-react-demo/static/css/main.a1bf936a.css.map",
-    "main.43b267bf.js.map": "/mqtt-react-demo/static/js/main.43b267bf.js.map",
-    "453.72ec56a4.chunk.js.map": "/mqtt-react-demo/static/js/453.72ec56a4.chunk.js.map"
+    "main.css": "/cani/static/css/main.a1bf936a.css",
+    "main.js": "/cani/static/js/main.c2931653.js",
+    "static/js/453.72ec56a4.chunk.js": "/cani/static/js/453.72ec56a4.chunk.js",
+    "index.html": "/cani/index.html",
+    "main.a1bf936a.css.map": "/cani/static/css/main.a1bf936a.css.map",
+    "main.c2931653.js.map": "/cani/static/js/main.c2931653.js.map",
+    "453.72ec56a4.chunk.js.map": "/cani/static/js/453.72ec56a4.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.a1bf936a.css",
-    "static/js/main.43b267bf.js"
+    "static/js/main.c2931653.js"
   ]
 }
