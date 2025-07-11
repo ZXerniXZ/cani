@@ -5,8 +5,8 @@ import { richiediPermessoNotifiche } from './index';
 
 const MQTT_BROKER = 'wss://test.mosquitto.org:8081';
 const TOPIC = 'giardino/stato';
-const FAMIGLIE = ['Rossi', 'Bianchi'];
-const VAPID_PUBLIC_KEY = 'BB8l__PCTsH5Xb1gaDl5pAO-XyrUJOCtD8JdJYyJhCxVacLalgk4dnWyHYkp3_q6yT8KVT4N2C3ziwGOA6tUcRQ';
+const FAMIGLIE = ['ermes-ben', 'raya', 'Visualizzatore'];
+const PUSH_SERVER_URL = 'https://cani-backend.onrender.com';
 
 type StatoGiardino = {
   stato: 'libero' | 'occupato';
@@ -24,26 +24,85 @@ function App() {
   const [famigliaSelezionata, setFamigliaSelezionata] = useState<string | null>(null);
   const [stato, setStato] = useState<StatoGiardino | null>(null);
   const [conn, setConn] = useState<'connecting' | 'connected' | 'error'>('connecting');
+  const [notificheAttive, setNotificheAttive] = useState<boolean>(false);
   const clientRef = useRef<MqttClient | null>(null);
 
-  // Funzione per registrare la subscription push (placeholder, backend dopo)
+  // Funzione per registrare la subscription push (ora prende la VAPID key dal backend)
   async function registraPush() {
     if ('serviceWorker' in navigator && 'PushManager' in window) {
       const reg = await navigator.serviceWorker.ready;
       try {
+        // Recupera la VAPID public key dal backend
+        const resp = await fetch(PUSH_SERVER_URL + '/vapidPublicKey');
+        const data = await resp.json();
+        const VAPID_PUBLIC_KEY = data.publicKey;
         const sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
         });
         // Invia la subscription al backend
-        await fetch('http://localhost:4000/subscribe', {
+        await fetch(PUSH_SERVER_URL + '/subscribe', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(sub)
         });
         console.log('Push subscription inviata al backend:', JSON.stringify(sub));
+        return true;
       } catch (e) {
         console.warn('Push subscription error', e);
+        return false;
+      }
+    }
+    return false;
+  }
+
+  // Funzione per cancellare la subscription push
+  async function cancellaPush() {
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      const reg = await navigator.serviceWorker.ready;
+      try {
+        const subscription = await reg.pushManager.getSubscription();
+        if (subscription) {
+          // Notifica il backend della cancellazione
+          try {
+            await fetch(PUSH_SERVER_URL + '/unsubscribe', {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ endpoint: subscription.endpoint })
+            });
+          } catch (e) {
+            console.warn('Errore notifica cancellazione al backend:', e);
+          }
+          
+          await subscription.unsubscribe();
+          console.log('Push subscription cancellata');
+          return true;
+        }
+      } catch (e) {
+        console.warn('Push unsubscription error', e);
+      }
+    }
+    return false;
+  }
+
+  // Funzione per gestire l'attivazione/disattivazione delle notifiche
+  async function toggleNotifiche() {
+    if (!notificheAttive) {
+      // Attiva notifiche
+      const perm = await richiediPermessoNotifiche();
+      if (perm === 'granted') {
+        const success = await registraPush();
+        if (success) {
+          setNotificheAttive(true);
+          localStorage.setItem('notificheAttive', 'true');
+        }
+      }
+    } else {
+      // Disattiva notifiche
+      const success = await cancellaPush();
+      if (success) {
+        setNotificheAttive(false);
+        localStorage.setItem('notificheAttive', 'false');
       }
     }
   }
@@ -60,12 +119,16 @@ function App() {
     return outputArray;
   }
 
-  // Recupera la famiglia selezionata da localStorage all'avvio
+  // Recupera la famiglia selezionata e lo stato notifiche da localStorage all'avvio
   useEffect(() => {
     const salvata = localStorage.getItem('famiglia');
+    const notificheSalvate = localStorage.getItem('notificheAttive');
     if (salvata) {
       setFamigliaSelezionata(salvata);
       setFamiglia(salvata);
+    }
+    if (notificheSalvate) {
+      setNotificheAttive(notificheSalvate === 'true');
     }
   }, []);
 
@@ -177,7 +240,11 @@ function App() {
               style={{ fontSize: 22, marginBottom: 24 }}
             >
               <option value="" disabled>-- Scegli --</option>
-              {FAMIGLIE.map(f => <option key={f} value={f}>{f}</option>)}
+              {FAMIGLIE.map(f => (
+                <option key={f} value={f}>
+                  {f === 'Visualizzatore' ? 'Visualizzatore (solo lettura)' : f}
+                </option>
+              ))}
             </select>
             <button
               style={{ fontSize: 20, padding: '10px 24px' }}
@@ -185,10 +252,6 @@ function App() {
               onClick={async () => {
                 setFamigliaSelezionata(famiglia);
                 localStorage.setItem('famiglia', famiglia);
-                const perm = await richiediPermessoNotifiche();
-                if (perm === 'granted') {
-                  await registraPush();
-                }
               }}
             >
               Conferma
@@ -205,12 +268,75 @@ function App() {
         <h2>Gestione Giardino</h2>
         <div style={{ marginBottom: 24, fontSize: 18, color: '#fff' }}>
           Famiglia selezionata: <b>{famigliaSelezionata}</b>
+          {famigliaSelezionata === 'Visualizzatore' && (
+            <div style={{ fontSize: 14, color: '#aaa', marginTop: 8 }}>
+              Modalità solo visualizzazione
+            </div>
+          )}
+        </div>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 12, 
+          marginBottom: 24, 
+          fontSize: 16, 
+          color: '#fff',
+          background: '#333',
+          padding: '12px 16px',
+          borderRadius: 8
+        }}>
+          <span>Notifiche push:</span>
+          <label style={{ 
+            position: 'relative', 
+            display: 'inline-block', 
+            width: 50, 
+            height: 24 
+          }}>
+            <input
+              type="checkbox"
+              checked={notificheAttive}
+              onChange={toggleNotifiche}
+              style={{ 
+                opacity: 0, 
+                width: 0, 
+                height: 0 
+              }}
+            />
+            <span style={{
+              position: 'absolute',
+              cursor: 'pointer',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: notificheAttive ? '#4CAF50' : '#ccc',
+              transition: '.4s',
+              borderRadius: 24,
+            }}>
+              <span style={{
+                position: 'absolute',
+                content: '""',
+                height: 18,
+                width: 18,
+                left: 3,
+                bottom: 3,
+                backgroundColor: 'white',
+                transition: '.4s',
+                borderRadius: '50%',
+                transform: notificheAttive ? 'translateX(26px)' : 'translateX(0)'
+              }} />
+            </span>
+          </label>
+          <span style={{ fontSize: 14, color: '#aaa' }}>
+            {notificheAttive ? 'Attive' : 'Disattive'}
+          </span>
         </div>
         <div style={{ display: 'flex', gap: 16, marginBottom: 32 }}>
           <button
             style={{ fontSize: 18, padding: '10px 24px' }}
             onClick={() => pubblicaStato('occupato')}
             disabled={
+              famigliaSelezionata === 'Visualizzatore' ||
               (stato?.stato === 'occupato' && stato?.famiglia === famigliaSelezionata) ||
               (stato?.stato === 'occupato' && stato?.famiglia !== famigliaSelezionata)
             }
@@ -221,6 +347,7 @@ function App() {
             style={{ fontSize: 18, padding: '10px 24px' }}
             onClick={() => pubblicaStato('libero')}
             disabled={
+              famigliaSelezionata === 'Visualizzatore' ||
               !(stato?.stato === 'occupato' && stato?.famiglia === famigliaSelezionata)
             }
           >

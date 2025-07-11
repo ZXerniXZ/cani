@@ -21,7 +21,8 @@ reportWebVitals();
 // Service Worker registration per PWA e notifiche push
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js')
+    const swUrl = `${process.env.PUBLIC_URL}/service-worker.js`;
+    navigator.serviceWorker.register(swUrl)
       .then(reg => {
         console.log('Service Worker registrato:', reg);
       })
