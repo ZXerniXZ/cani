@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import mqtt, { MqttClient } from 'mqtt';
 import './App.css';
 import { richiediPermessoNotifiche } from './index';
+// Importo le icone da react-icons
+import { FaLock, FaLeaf, FaCheck } from 'react-icons/fa';
 
 const MQTT_BROKER = 'wss://test.mosquitto.org:8081';
 const TOPIC = 'giardino/stato';
@@ -26,6 +28,13 @@ function App() {
   const [conn, setConn] = useState<'connecting' | 'connected' | 'error'>('connecting');
   const [notificheAttive, setNotificheAttive] = useState<boolean>(false);
   const clientRef = useRef<MqttClient | null>(null);
+  // Stato per mostrare il pulsante di sblocco dopo 20s
+  const [showUnlock, setShowUnlock] = React.useState(false);
+  // Stato per attesa backend
+  const [backendReady, setBackendReady] = React.useState<boolean>(false);
+  const [isBooking, setIsBooking] = React.useState(false);
+  const [bookingConfirmed, setBookingConfirmed] = React.useState(false);
+  const bookingTimeout = React.useRef<NodeJS.Timeout | null>(null);
 
   // Funzione per registrare la subscription push (ora prende la VAPID key dal backend)
   async function registraPush() {
@@ -132,6 +141,31 @@ function App() {
     }
   }, []);
 
+  // Controllo backend all'avvio
+  React.useEffect(() => {
+    let stop = false;
+    async function checkBackend() {
+      try {
+        const resp = await fetch(PUSH_SERVER_URL + '/health', { method: 'GET' });
+        if (resp.ok) {
+          setBackendReady(true);
+          return;
+        }
+      } catch {}
+      if (!stop) setTimeout(checkBackend, 3000);
+    }
+    checkBackend();
+    return () => { stop = true; };
+  }, []);
+
+  // Ping periodico per tenere sveglio il backend (ogni 5 minuti)
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      fetch(PUSH_SERVER_URL + '/health').catch(() => {});
+    }, 5 * 60 * 1000); // ogni 5 minuti
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     const client = mqtt.connect(MQTT_BROKER);
     clientRef.current = client;
@@ -157,6 +191,15 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (conn === 'connected' && stato === null) {
+      const t = setTimeout(() => setShowUnlock(true), 20000);
+      return () => clearTimeout(t);
+    } else {
+      setShowUnlock(false);
+    }
+  }, [conn, stato]);
+
   const pubblicaStato = (nuovoStato: 'libero' | 'occupato') => {
     if (clientRef.current && clientRef.current.connected && famigliaSelezionata) {
       const payload: StatoGiardino = {
@@ -164,30 +207,85 @@ function App() {
         famiglia: famigliaSelezionata,
         timestamp: Date.now(),
       };
-      clientRef.current.publish(TOPIC, JSON.stringify(payload));
+      clientRef.current.publish(TOPIC, JSON.stringify(payload), { retain: true });
       // Aggiornamento ottimistico locale
       setStato(payload);
     }
   };
 
-  let boxClass = 'giardino-card';
-  let boxText = 'Giardino libero';
-  let infoText = '';
-  if (stato) {
-    if (stato.stato === 'occupato') {
-      boxClass += ' occupato';
-      boxText = 'Giardino occupato';
-      infoText = `Occupato da: ${stato.famiglia} dal ${formatDate(stato.timestamp)}`;
-    } else {
-      boxText = 'Giardino libero';
-      infoText = `Ultimo utilizzatore: ${stato.famiglia} (liberato il ${formatDate(stato.timestamp)})`;
+  // Quando clicco Occupa Giardino
+  const handleOccupa = () => {
+    setIsBooking(true);
+    setBookingConfirmed(false);
+    pubblicaStato('occupato');
+    // Se dopo 10s non arriva conferma, resetta
+    if (bookingTimeout.current) clearTimeout(bookingTimeout.current);
+    bookingTimeout.current = setTimeout(() => setIsBooking(false), 10000);
+  };
+
+  // Quando arriva il messaggio MQTT di occupazione confermata dalla propria famiglia
+  React.useEffect(() => {
+    if (isBooking && stato?.stato === 'occupato' && stato.famiglia === famigliaSelezionata) {
+      setBookingConfirmed(true);
+      setIsBooking(false);
+      if (bookingTimeout.current) clearTimeout(bookingTimeout.current);
     }
+  }, [isBooking, stato, famigliaSelezionata]);
+
+  // Quando il giardino torna libero, resetta la conferma di booking
+  React.useEffect(() => {
+    if (bookingConfirmed && stato?.stato === 'libero') {
+      setBookingConfirmed(false);
+    }
+  }, [bookingConfirmed, stato]);
+
+  // Card stato giardino
+  let cardClass = 'giardino-card';
+  let cardGradient = stato && stato.stato === 'occupato'
+    ? 'giardino-card-occupato'
+    : 'giardino-card-libero';
+  let cardIcon = stato && stato.stato === 'occupato'
+    ? <span style={{display: 'block', marginBottom: 12}}><FaLock size={48} /></span>
+    : <span style={{display: 'block', marginBottom: 12}}><FaLeaf size={48} /></span>;
+  let cardTitle = stato && stato.stato === 'occupato' ? 'Giardino occupato' : 'Giardino libero';
+  let cardInfo = stato
+    ? (stato.stato === 'occupato'
+        ? `Occupato da: ${stato.famiglia}\nDal: ${formatDate(stato.timestamp)}`
+        : `Ultimo utilizzatore: ${stato.famiglia}\nDal: ${formatDate(stato.timestamp)}`)
+    : '';
+
+  // Blocca tutto finché il backend non è up
+  if (!backendReady) {
+    return (
+      <div className="App">
+        <header className="App-header">
+          <div style={{
+            background: '#222',
+            color: '#fff',
+            borderRadius: 16,
+            width: 400,
+            height: 220,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 28,
+            fontWeight: 'bold',
+            margin: '0 auto',
+            boxShadow: '0 4px 24px #0006',
+            position: 'relative',
+          }}>
+            Avvio backend...<br />Potrebbe volerci qualche momento
+          </div>
+        </header>
+      </div>
+    );
   }
 
   if (conn !== 'connected') {
     return (
-      <div className="App">
-        <header className="App-header">
+      <div className="App" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <header className="App-header" style={{ width: '100vw', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
           <div style={{
             background: '#222',
             color: '#fff',
@@ -206,6 +304,51 @@ function App() {
           }}>
             Connessione al broker MQTT...
             <div style={{ marginTop: 24, fontSize: 18, color: '#aaa' }}>Attendere...</div>
+          </div>
+        </header>
+      </div>
+    );
+  }
+
+  // Schermata di caricamento stato giardino
+  if (conn === 'connected' && stato === null) {
+    // Funzione per pubblicare uno stato iniziale retained
+    const pubblicaStatoIniziale = () => {
+      if (clientRef.current && clientRef.current.connected) {
+        const payload = {
+          stato: 'libero',
+          famiglia: 'iniziale',
+          timestamp: Date.now(),
+        };
+        clientRef.current.publish(TOPIC, JSON.stringify(payload), { retain: true });
+      }
+    };
+    return (
+      <div className="App">
+        <header className="App-header">
+          <div style={{
+            background: '#222',
+            color: '#fff',
+            borderRadius: 16,
+            width: 400,
+            height: 260,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 28,
+            fontWeight: 'bold',
+            margin: '0 auto',
+            boxShadow: '0 4px 24px #0006',
+            position: 'relative',
+          }}>
+            Recupero stato giardino...
+            <div style={{ marginTop: 24, fontSize: 18, color: '#aaa' }}>Attendere...</div>
+            {showUnlock && (
+              <button style={{ marginTop: 32, fontSize: 18 }} onClick={pubblicaStatoIniziale}>
+                Sblocca (pubblica stato iniziale)
+              </button>
+            )}
           </div>
         </header>
       </div>
@@ -265,101 +408,79 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <h2>Gestione Giardino</h2>
-        <div style={{ marginBottom: 24, fontSize: 18, color: '#fff' }}>
-          Famiglia selezionata: <b>{famigliaSelezionata}</b>
-          {famigliaSelezionata === 'Visualizzatore' && (
-            <div style={{ fontSize: 14, color: '#aaa', marginTop: 8 }}>
-              Modalità solo visualizzazione
-            </div>
+        <div className="famiglia-label">
+          Famiglia selezionata:<br />
+          <span className="famiglia-nome">{famigliaSelezionata}</span>
+        </div>
+        <div className="notifiche-card">
+          <span>Notifiche Push</span>
+          <div className="notifiche-switch">
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={notificheAttive}
+                onChange={toggleNotifiche}
+              />
+              <span className="slider round"></span>
+            </label>
+            <span className="notifiche-stato">{notificheAttive ? 'Attive' : 'Spente'}</span>
+          </div>
+        </div>
+        {/* Card con animazione e contenuto dinamico */}
+        <div className={`giardino-card ${cardGradient} ${(isBooking || bookingConfirmed || stato?.stato === 'occupato') ? 'giardino-card-expanded' : ''} ${(isBooking || bookingConfirmed) ? 'giardino-card-booking' : ''} ${isBooking ? 'giardino-card-loading' : ''} ${bookingConfirmed ? 'giardino-card-success' : ''}`}> 
+          {isBooking ? (
+            <>
+              <div className="giardino-loader" />
+              <div className="giardino-info" style={{marginTop: 18, fontWeight: 500, color: '#fff'}}>
+                La tua richiesta sta venendo elaborata...
+              </div>
+            </>
+          ) : bookingConfirmed ? (
+            <>
+              <div className="giardino-success-icon"><FaCheck /></div>
+              <div className="giardino-success-text">Hai prenotato con successo il giardino</div>
+              <div className="giardino-info">{cardInfo}</div>
+              {stato?.stato === 'occupato' && stato.famiglia === famigliaSelezionata && (
+                <button
+                  className="giardino-btn libera"
+                  style={{marginTop: 18, width: '90%'}}
+                  onClick={() => pubblicaStato('libero')}
+                >
+                  <span style={{marginRight: 8, display: 'flex', alignItems: 'center'}}><FaCheck /></span>Libera Giardino
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              {cardIcon}
+              <div className="giardino-title">{cardTitle}</div>
+              <div className="giardino-info">{cardInfo}</div>
+              {/* Se occupato e la famiglia è quella giusta, mostra il pulsante dentro la card */}
+              {stato?.stato === 'occupato' && stato.famiglia === famigliaSelezionata && (
+                <button
+                  className="giardino-btn libera"
+                  style={{marginTop: 18, width: '90%'}}
+                  onClick={() => pubblicaStato('libero')}
+                >
+                  <span style={{marginRight: 8, display: 'flex', alignItems: 'center'}}><FaCheck /></span>Libera Giardino
+                </button>
+              )}
+            </>
           )}
         </div>
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: 12, 
-          marginBottom: 24, 
-          fontSize: 16, 
-          color: '#fff',
-          background: '#333',
-          padding: '12px 16px',
-          borderRadius: 8
-        }}>
-          <span>Notifiche push:</span>
-          <label style={{ 
-            position: 'relative', 
-            display: 'inline-block', 
-            width: 50, 
-            height: 24 
-          }}>
-            <input
-              type="checkbox"
-              checked={notificheAttive}
-              onChange={toggleNotifiche}
-              style={{ 
-                opacity: 0, 
-                width: 0, 
-                height: 0 
-              }}
-            />
-            <span style={{
-              position: 'absolute',
-              cursor: 'pointer',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: notificheAttive ? '#4CAF50' : '#ccc',
-              transition: '.4s',
-              borderRadius: 24,
-            }}>
-              <span style={{
-                position: 'absolute',
-                content: '""',
-                height: 18,
-                width: 18,
-                left: 3,
-                bottom: 3,
-                backgroundColor: 'white',
-                transition: '.4s',
-                borderRadius: '50%',
-                transform: notificheAttive ? 'translateX(26px)' : 'translateX(0)'
-              }} />
-            </span>
-          </label>
-          <span style={{ fontSize: 14, color: '#aaa' }}>
-            {notificheAttive ? 'Attive' : 'Disattive'}
-          </span>
-        </div>
-        <div style={{ display: 'flex', gap: 16, marginBottom: 32 }}>
-          <button
-            style={{ fontSize: 18, padding: '10px 24px' }}
-            onClick={() => pubblicaStato('occupato')}
-            disabled={
-              famigliaSelezionata === 'Visualizzatore' ||
-              (stato?.stato === 'occupato' && stato?.famiglia === famigliaSelezionata) ||
-              (stato?.stato === 'occupato' && stato?.famiglia !== famigliaSelezionata)
-            }
-          >
-            Occupa giardino
-          </button>
-          <button
-            style={{ fontSize: 18, padding: '10px 24px' }}
-            onClick={() => pubblicaStato('libero')}
-            disabled={
-              famigliaSelezionata === 'Visualizzatore' ||
-              !(stato?.stato === 'occupato' && stato?.famiglia === famigliaSelezionata)
-            }
-          >
-            Libera giardino
-          </button>
-        </div>
-        <div className={boxClass}>
-          {boxText}
-          <div className="giardino-info">{infoText}</div>
-        </div>
-        <div style={{ marginTop: 32, fontSize: 16, color: '#aaa' }}>
-          Stato MQTT: {conn === 'connected' ? 'Connesso' : conn === 'connecting' ? 'Connessione...' : 'Errore'}
+        {/* Se giardino libero, mostra solo il pulsante Occupa sotto la card, ma non durante booking */}
+        {stato && stato.stato === 'libero' && famigliaSelezionata !== 'Visualizzatore' && !isBooking && !bookingConfirmed && (
+          <div className="bottoni-row" style={{marginTop: 12}}>
+            <button
+              className="giardino-btn occupa"
+              onClick={handleOccupa}
+            >
+              <span style={{marginRight: 8, display: 'flex', alignItems: 'center'}}><FaLeaf /></span>Occupa Giardino
+            </button>
+          </div>
+        )}
+        <div className="mqtt-label">
+          <span className="mqtt-dot" /> MQTT: Connesso
         </div>
       </header>
     </div>

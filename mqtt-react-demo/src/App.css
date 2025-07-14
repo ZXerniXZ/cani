@@ -3,6 +3,7 @@ body, html, #root, .App {
   height: 100%;
   margin: 0;
   padding: 0;
+  overflow: hidden;
 }
 
 .App {
@@ -89,52 +90,259 @@ button:disabled {
   box-shadow: none;
 }
 
-/* Card centrale */
-.giardino-card {
-  background: linear-gradient(135deg, #2ecc40 0%, #6dd5ed 100%);
+.famiglia-label {
+  font-size: 1.3rem;
   color: #fff;
+  margin-bottom: 10px;
+  text-align: center;
+}
+.famiglia-nome {
+  font-size: 2.1rem;
+  font-weight: bold;
+  color: #e6f7ff;
+}
+
+.notifiche-card {
+  background: rgba(20, 24, 40, 0.85);
+  border-radius: 18px;
+  padding: 16px 24px;
+  margin: 0 auto 18px auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 95vw;
+  max-width: 420px;
+  font-size: 1.2rem;
+  box-shadow: 0 2px 12px #0003;
+}
+.notifiche-switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.notifiche-stato {
+  font-size: 1.1rem;
+  color: #b2ffb2;
+  font-weight: bold;
+}
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 28px;
+}
+.switch input { display: none; }
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 28px;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 22px;
+  width: 22px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+input:checked + .slider {
+  background-color: #4CAF50;
+}
+input:checked + .slider:before {
+  transform: translateX(20px);
+}
+
+.giardino-card {
   border-radius: 24px;
-  width: 420px;
-  height: 240px;
+  width: 95vw;
+  max-width: 440px;
+  min-height: 170px;
+  margin: 0 auto 18px auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 38px;
+  font-size: 2.1rem;
   font-weight: bold;
-  margin: 0 auto;
   box-shadow: 0 8px 32px #0005;
   position: relative;
-  transition: background 0.4s;
-}
-.giardino-card.occupato {
-  background: linear-gradient(135deg, #e74c3c 0%, #f7971e 100%);
-}
-.giardino-card .giardino-info {
-  position: absolute;
-  bottom: 22px;
-  left: 0;
-  width: 100%;
+  padding: 24px 12px 18px 12px;
   text-align: center;
-  font-size: 20px;
-  font-weight: normal;
+  transition: max-height 0.5s cubic-bezier(0.4,0,0.2,1), padding 0.5s cubic-bezier(0.4,0,0.2,1), background 0.4s;
+  max-height: 220px;
+  overflow: hidden;
+}
+.giardino-card-expanded {
+  max-height: 420px;
+  padding-bottom: 48px;
+}
+.giardino-card-loading {
+  max-height: 320px;
+  padding-bottom: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.giardino-loader {
+  margin: 18px auto 0 auto;
+  border: 6px solid #f3f3f3;
+  border-top: 6px solid #2193b0;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.giardino-card-success {
+  max-height: 420px;
+  padding-bottom: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.giardino-success-icon {
+  color: #43e97b;
+  font-size: 3.2rem;
+  margin-bottom: 8px;
+  margin-top: 8px;
+}
+.giardino-success-text {
+  font-size: 1.3rem;
+  color: #43e97b;
+  font-weight: bold;
+  margin-bottom: 10px;
+  text-align: center;
+}
+.giardino-card-occupato {
+  background: linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%);
   color: #fff;
-  opacity: 0.97;
+}
+.giardino-card-libero {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  color: #fff;
+}
+.giardino-card-booking {
+  max-height: 420px !important;
+  padding-bottom: 48px !important;
+}
+.giardino-title {
+  font-size: 2.1rem;
+  font-weight: bold;
+  margin-bottom: 6px;
+}
+.giardino-info {
+  font-size: 1.1rem;
+  font-weight: 400;
+  color: #fff;
+  margin-top: 2px;
+  white-space: pre-line;
+}
+
+.bottoni-row {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin: 0 auto 18px auto;
+  width: 95vw;
+  max-width: 440px;
+}
+.giardino-btn {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  font-weight: bold;
+  border-radius: 16px;
+  border: none;
+  padding: 18px 0;
+  margin: 0;
+  box-shadow: 0 2px 12px #0002;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s, color 0.2s;
+  min-width: 0;
+}
+.giardino-btn.occupa {
+  background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%);
+  color: #fff;
+}
+.giardino-btn.libera {
+  background: linear-gradient(90deg, #2193b0 0%, #6dd5ed 100%);
+  color: #fff;
+}
+.giardino-btn:disabled {
+  background: #888;
+  color: #222;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.mqtt-label {
+  margin-top: 18px;
+  font-size: 1.1rem;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.mqtt-dot {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  background: #43e97b;
+  border-radius: 50%;
+  margin-right: 6px;
 }
 
 /* Responsive */
 @media (max-width: 600px) {
   .giardino-card {
-    width: 98vw;
-    font-size: 20px;
-    height: 140px;
-    border-radius: 16px;
-    min-width: unset;
-    margin: 0 1vw;
+    font-size: 1.1rem;
+    min-height: 120px;
+    padding: 14px 4px 10px 4px;
+    border-radius: 14px;
   }
-  .giardino-card .giardino-info {
-    font-size: 14px;
-    bottom: 10px;
+  .giardino-title {
+    font-size: 1.2rem;
+  }
+  .famiglia-label {
+    font-size: 1.1rem;
+  }
+  .famiglia-nome {
+    font-size: 1.3rem;
+  }
+  .notifiche-card {
+    font-size: 1rem;
+    padding: 10px 8px;
+    border-radius: 12px;
+  }
+  .bottoni-row {
+    gap: 8px;
+  }
+  .giardino-btn {
+    font-size: 1rem;
+    border-radius: 10px;
+    padding: 12px 0;
+  }
+  .mqtt-label {
+    font-size: 0.95rem;
+  }
+  .mqtt-dot {
+    width: 10px;
+    height: 10px;
+    margin-right: 4px;
   }
   .App-header {
     padding-top: 8px;
