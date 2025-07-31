@@ -511,8 +511,8 @@ function App() {
             <span className="notifiche-stato">{notificheAttive ? 'Attive' : 'Spente'}</span>
           </div>
         </div>
-        {/* Card centrale grande come nella foto */}
-        <div className={`giardino-card-main ${cardGradient}`}>
+        {/* Card con animazione e contenuto dinamico */}
+        <div className={`giardino-card ${cardGradient} ${(isBooking || bookingConfirmed || stato?.stato === 'occupato') ? 'giardino-card-expanded' : ''} ${(isBooking || bookingConfirmed) ? 'giardino-card-booking' : ''} ${isBooking ? 'giardino-card-loading' : ''} ${bookingConfirmed ? 'giardino-card-success' : ''}`}> 
           {isBooking ? (
             <>
               <div className="giardino-loader" />
@@ -525,33 +525,105 @@ function App() {
               <div className="giardino-success-icon"><FaCheck /></div>
               <div className="giardino-success-text">Hai prenotato con successo il giardino</div>
               <div className="giardino-info">{cardInfo}</div>
+              {stato?.stato === 'occupato' && stato.famiglia === famigliaSelezionata && (
+                <button
+                  className="giardino-btn libera"
+                  style={{marginTop: 18, width: '90%'}}
+                  onClick={async () => await pubblicaStato('libero')}
+                >
+                  <span style={{marginRight: 8, display: 'flex', alignItems: 'center'}}><FaCheck /></span>Libera Giardino
+                </button>
+              )}
             </>
           ) : (
             <>
               {cardIcon}
               <div className="giardino-title">{cardTitle}</div>
               <div className="giardino-info">{cardInfo}</div>
+              {/* Se occupato e la famiglia è quella giusta, mostra il pulsante dentro la card */}
+              {stato?.stato === 'occupato' && stato.famiglia === famigliaSelezionata && (
+                <button
+                  className="giardino-btn libera"
+                  style={{marginTop: 18, width: '90%'}}
+                  onClick={async () => await pubblicaStato('libero')}
+                >
+                  <span style={{marginRight: 8, display: 'flex', alignItems: 'center'}}><FaCheck /></span>Libera Giardino
+                </button>
+              )}
             </>
           )}
         </div>
-        {/* Due pulsanti sempre presenti sotto la card, come nella foto */}
-        {!isBooking && !bookingConfirmed && famigliaSelezionata !== 'Visualizzatore' && (
-          <div className="bottoni-row-main">
+        {/* Pulsanti principali sempre visibili quando il giardino è occupato dalla propria famiglia */}
+        {stato?.stato === 'occupato' && stato.famiglia === famigliaSelezionata && !isBooking && !bookingConfirmed && (
+          <div className="bottoni-row" style={{marginTop: 20, gap: '20px'}}>
             <button
-              className={`btn-main btn-occupa ${stato?.stato === 'libero' ? 'enabled' : 'disabled'}`}
-              onClick={stato?.stato === 'libero' ? handleOccupa : undefined}
-              disabled={stato?.stato !== 'libero'}
+              className="giardino-btn occupa"
+              onClick={handleOccupa}
+              style={{ 
+                background: 'linear-gradient(135deg, #FF9800, #F57C00)',
+                opacity: 0.6,
+                cursor: 'not-allowed'
+              }}
+              disabled
             >
-              <span className="btn-icon"><FaLeaf /></span>
-              Occupa Giardino
+              <span style={{marginRight: 8, display: 'flex', alignItems: 'center'}}><FaLeaf /></span>Occupa Giardino
             </button>
             <button
-              className={`btn-main btn-libera ${stato?.stato === 'occupato' && stato?.famiglia === famigliaSelezionata ? 'enabled' : 'disabled'}`}
-              onClick={stato?.stato === 'occupato' && stato?.famiglia === famigliaSelezionata ? async () => await pubblicaStato('libero') : undefined}
-              disabled={!(stato?.stato === 'occupato' && stato?.famiglia === famigliaSelezionata)}
+              className="giardino-btn libera"
+              onClick={async () => await pubblicaStato('libero')}
             >
-              <span className="btn-icon"><FaCheck /></span>
-              Libera Giardino
+              <span style={{marginRight: 8, display: 'flex', alignItems: 'center'}}><FaCheck /></span>Libera Giardino
+            </button>
+          </div>
+        )}
+
+        {/* Se giardino libero, mostra solo il pulsante Occupa sotto la card, ma non durante booking */}
+        {stato && stato.stato === 'libero' && famigliaSelezionata !== 'Visualizzatore' && !isBooking && !bookingConfirmed && (
+          <div className="bottoni-row" style={{marginTop: 20, gap: '20px'}}>
+            <button
+              className="giardino-btn occupa"
+              onClick={handleOccupa}
+            >
+              <span style={{marginRight: 8, display: 'flex', alignItems: 'center'}}><FaLeaf /></span>Occupa Giardino
+            </button>
+            <button
+              className="giardino-btn libera"
+              style={{ 
+                background: 'linear-gradient(135deg, #4CAF50, #45a049)',
+                opacity: 0.6,
+                cursor: 'not-allowed'
+              }}
+              disabled
+            >
+              <span style={{marginRight: 8, display: 'flex', alignItems: 'center'}}><FaCheck /></span>Libera Giardino
+            </button>
+          </div>
+        )}
+
+        {/* Se giardino occupato da altra famiglia, mostra entrambi disabilitati */}
+        {stato?.stato === 'occupato' && stato.famiglia !== famigliaSelezionata && !isBooking && !bookingConfirmed && (
+          <div className="bottoni-row" style={{marginTop: 20, gap: '20px'}}>
+            <button
+              className="giardino-btn occupa"
+              style={{ 
+                background: 'linear-gradient(135deg, #FF9800, #F57C00)',
+                opacity: 0.6,
+                cursor: 'not-allowed'
+              }}
+              disabled
+            >
+              <span style={{marginRight: 8, display: 'flex', alignItems: 'center'}}><FaLeaf /></span>Occupa Giardino
+            </button>
+            <button
+              className="giardino-btn libera"
+              style={{ 
+                background: 'linear-gradient(135deg, #4CAF50, #45a049)',
+                opacity: 0.6,
+                cursor: 'not-allowed'
+              }}
+              disabled
+            >
+              <span style={{marginRight: 8, display: 'flex', alignItems: 'center'}}><FaCheck /></span>Libera Giardino
             </button>
           </div>
         )}

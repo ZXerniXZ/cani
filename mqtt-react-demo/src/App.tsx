@@ -466,42 +466,31 @@ function App() {
               <div className="giardino-success-icon"><FaCheck /></div>
               <div className="giardino-success-text">Hai prenotato con successo il giardino</div>
               <div className="giardino-info">{cardInfo}</div>
-              {stato?.stato === 'occupato' && stato.famiglia === famigliaSelezionata && (
-                <button
-                  className="giardino-btn libera"
-                  style={{marginTop: 18, width: '90%'}}
-                  onClick={async () => await pubblicaStato('libero')}
-                >
-                  <span style={{marginRight: 8, display: 'flex', alignItems: 'center'}}><FaCheck /></span>Libera Giardino
-                </button>
-              )}
             </>
           ) : (
             <>
               {cardIcon}
               <div className="giardino-title">{cardTitle}</div>
               <div className="giardino-info">{cardInfo}</div>
-              {/* Se occupato e la famiglia è quella giusta, mostra il pulsante dentro la card */}
-              {stato?.stato === 'occupato' && stato.famiglia === famigliaSelezionata && (
-                <button
-                  className="giardino-btn libera"
-                  style={{marginTop: 18, width: '90%'}}
-                  onClick={async () => await pubblicaStato('libero')}
-                >
-                  <span style={{marginRight: 8, display: 'flex', alignItems: 'center'}}><FaCheck /></span>Libera Giardino
-                </button>
-              )}
             </>
           )}
         </div>
-        {/* Se giardino libero, mostra solo il pulsante Occupa sotto la card, ma non durante booking */}
-        {stato && stato.stato === 'libero' && famigliaSelezionata !== 'Visualizzatore' && !isBooking && !bookingConfirmed && (
-          <div className="bottoni-row" style={{marginTop: 12}}>
+        {/* Mostra sempre entrambi i pulsanti come nell'immagine target, ma disabilita quelli non applicabili */}
+        {stato && famigliaSelezionata !== 'Visualizzatore' && !isBooking && !bookingConfirmed && (
+          <div className="bottoni-row">
             <button
               className="giardino-btn occupa"
               onClick={handleOccupa}
+              disabled={stato.stato === 'occupato'}
             >
               <span style={{marginRight: 8, display: 'flex', alignItems: 'center'}}><FaLeaf /></span>Occupa Giardino
+            </button>
+            <button
+              className="giardino-btn libera"
+              onClick={async () => await pubblicaStato('libero')}
+              disabled={stato.stato === 'libero' || stato.famiglia !== famigliaSelezionata}
+            >
+              <span style={{marginRight: 8, display: 'flex', alignItems: 'center'}}><FaCheck /></span>Libera Giardino
             </button>
           </div>
         )}
