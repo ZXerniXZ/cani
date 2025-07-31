@@ -1,0 +1,22 @@
+{
+  "short_name": "Giardino",
+  "name": "Gestione Giardino Famiglie",
+  "icons": [
+    {
+      "src": "logo192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "logo512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#1e3c72",
+  "theme_color": "#2a5298",
+  "description": "App per organizzare l'uso del giardino tra famiglie con notifiche push.",
+  "orientation": "portrait"
+}

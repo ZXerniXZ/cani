@@ -1,0 +1,294 @@
+.App {
+  text-align: center;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.App-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  max-width: 500px;
+  width: 100%;
+}
+
+.famiglia-label {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  padding: 15px 25px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.famiglia-nome {
+  font-weight: bold;
+  font-size: 20px;
+  color: #ffd700;
+}
+
+.notifiche-card {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  padding: 15px 25px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 400px;
+}
+
+.notifiche-switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 34px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 34px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 26px;
+  width: 26px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: #2196F3;
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px #2196F3;
+}
+
+input:checked + .slider:before {
+  transform: translateX(26px);
+}
+
+.notifiche-stato {
+  font-size: 14px;
+  min-width: 50px;
+}
+
+.giardino-card {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  padding: 30px;
+  border-radius: 20px;
+  margin-bottom: 20px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  width: 100%;
+  max-width: 400px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.giardino-card-libero {
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.8), rgba(139, 195, 74, 0.8));
+}
+
+.giardino-card-occupato {
+  background: linear-gradient(135deg, rgba(244, 67, 54, 0.8), rgba(229, 57, 53, 0.8));
+}
+
+.giardino-card-expanded {
+  transform: scale(1.02);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.giardino-card-booking {
+  background: linear-gradient(135deg, rgba(255, 193, 7, 0.8), rgba(255, 152, 0, 0.8));
+}
+
+.giardino-card-loading {
+  animation: pulse 2s infinite;
+}
+
+.giardino-card-success {
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.9), rgba(139, 195, 74, 0.9));
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.giardino-title {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 15px;
+}
+
+.giardino-info {
+  font-size: 16px;
+  line-height: 1.5;
+  white-space: pre-line;
+  margin-bottom: 15px;
+}
+
+.giardino-loader {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 15px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.giardino-success-icon {
+  font-size: 48px;
+  color: white;
+  margin-bottom: 15px;
+}
+
+.giardino-success-text {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 15px;
+}
+
+.bottoni-row {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.giardino-btn {
+  padding: 15px 30px;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 180px;
+  text-decoration: none;
+}
+
+.giardino-btn.libera {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+}
+
+.giardino-btn.libera:hover {
+  background: linear-gradient(135deg, #45a049, #3d8b40);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+}
+
+.giardino-btn.occupa {
+  background: linear-gradient(135deg, #FF9800, #F57C00);
+  color: white;
+}
+
+.giardino-btn.occupa:hover {
+  background: linear-gradient(135deg, #F57C00, #E65100);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4);
+}
+
+.giardino-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.mqtt-label {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mqtt-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #4CAF50;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+@media (max-width: 480px) {
+  .App-header {
+    padding: 10px;
+  }
+  
+  .giardino-card {
+    padding: 20px;
+    margin-bottom: 15px;
+  }
+  
+  .giardino-title {
+    font-size: 20px;
+  }
+  
+  .giardino-btn {
+    padding: 12px 24px;
+    font-size: 14px;
+    min-width: 150px;
+  }
+  
+  .bottoni-row {
+    flex-direction: column;
+    align-items: center;
+  }
+} 
