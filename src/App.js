@@ -33,7 +33,7 @@ function App() {
       const reg = await navigator.serviceWorker.ready;
       try {
         // Recupera la VAPID public key dal backend
-        const resp = await fetch(PUSH_SERVER_URL + '/api/vapidPublicKey');
+        const resp = await fetch(PUSH_SERVER_URL + '/vapidPublicKey');
         const data = await resp.json();
         const VAPID_PUBLIC_KEY = data.publicKey;
         const sub = await reg.pushManager.subscribe({
@@ -41,7 +41,7 @@ function App() {
           applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
         });
         // Invia la subscription al backend
-        await fetch(PUSH_SERVER_URL + '/api/subscribe', {
+        await fetch(PUSH_SERVER_URL + '/subscribe', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(sub)
@@ -65,7 +65,7 @@ function App() {
         if (subscription) {
           // Notifica il backend della cancellazione
           try {
-            await fetch(PUSH_SERVER_URL + '/api/unsubscribe', {
+            await fetch(PUSH_SERVER_URL + '/unsubscribe', {
               method: 'DELETE',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ endpoint: subscription.endpoint })
@@ -137,7 +137,7 @@ function App() {
     let stop = false;
     async function checkBackend() {
       try {
-        const resp = await fetch(PUSH_SERVER_URL + '/api/health', { method: 'GET' });
+        const resp = await fetch(PUSH_SERVER_URL + '/health', { method: 'GET' });
         if (resp.ok) {
           setBackendReady(true);
           setConn('connected');
@@ -153,7 +153,7 @@ function App() {
   // Ping periodico per tenere sveglio il backend (ogni 5 minuti)
   React.useEffect(() => {
     const interval = setInterval(() => {
-      fetch(PUSH_SERVER_URL + '/api/health').catch(() => {});
+      fetch(PUSH_SERVER_URL + '/health').catch(() => {});
     }, 5 * 60 * 1000); // ogni 5 minuti
     return () => clearInterval(interval);
   }, []);
@@ -166,7 +166,7 @@ function App() {
     async function pollStato() {
       if (stopPolling) return;
       try {
-        const resp = await fetch(`${PUSH_SERVER_URL}/api/stato`);
+        const resp = await fetch(`${PUSH_SERVER_URL}/stato`);
         if (resp.ok) {
           const data = await resp.json();
           setStato(data);
@@ -204,7 +204,7 @@ function App() {
           famiglia: famigliaSelezionata,
           timestamp: Date.now(),
         };
-        const resp = await fetch(`${PUSH_SERVER_URL}/api/stato`, {
+        const resp = await fetch(`${PUSH_SERVER_URL}/stato`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -327,7 +327,7 @@ function App() {
           timestamp: Date.now(),
         };
         try {
-          const resp = await fetch(`${PUSH_SERVER_URL}/api/stato`, {
+          const resp = await fetch(`${PUSH_SERVER_URL}/stato`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
