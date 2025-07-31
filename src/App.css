@@ -110,19 +110,25 @@ input:checked + .slider:before {
   min-width: 50px;
 }
 
-.giardino-card {
+.giardino-card-main {
   background: rgba(255, 255, 255, 0.1);
   color: white;
-  padding: 30px;
-  border-radius: 20px;
-  margin-bottom: 20px;
+  padding: 40px;
+  border-radius: 25px;
+  margin-bottom: 25px;
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
   width: 100%;
-  max-width: 400px;
+  max-width: 450px;
+  min-height: 200px;
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .giardino-card-libero {
@@ -196,11 +202,74 @@ input:checked + .slider:before {
   margin-bottom: 15px;
 }
 
-.bottoni-row {
+.bottoni-row-main {
   display: flex;
-  gap: 15px;
+  gap: 20px;
   justify-content: center;
-  flex-wrap: wrap;
+  width: 100%;
+  max-width: 450px;
+  margin-top: 20px;
+}
+
+.btn-main {
+  flex: 1;
+  padding: 18px 25px;
+  border: none;
+  border-radius: 15px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  min-height: 60px;
+}
+
+.btn-icon {
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+  font-size: 18px;
+}
+
+.btn-occupa.enabled {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+  transform: none;
+}
+
+.btn-occupa.enabled:hover {
+  background: linear-gradient(135deg, #45a049, #3d8b40);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+}
+
+.btn-occupa.disabled {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-libera.enabled {
+  background: linear-gradient(135deg, #2196F3, #1976D2);
+  color: white;
+  transform: none;
+}
+
+.btn-libera.enabled:hover {
+  background: linear-gradient(135deg, #1976D2, #1565C0);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+}
+
+.btn-libera.disabled {
+  background: linear-gradient(135deg, #2196F3, #1976D2);
+  color: white;
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .giardino-btn {
@@ -214,7 +283,8 @@ input:checked + .slider:before {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 180px;
+  min-width: 160px;
+  flex: 1;
   text-decoration: none;
 }
 

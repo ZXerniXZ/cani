@@ -26,6 +26,10 @@ function App() {
   const [bookingConfirmed, setBookingConfirmed] = React.useState(false);
   const bookingTimeout = React.useRef(null);
   const pollingInterval = React.useRef(null);
+  // Stati per barra di caricamento
+  const [loadingProgress, setLoadingProgress] = React.useState(0);
+  const [showLoadingScreen, setShowLoadingScreen] = React.useState(true);
+  const loadingInterval = React.useRef(null);
 
   // Funzione per registrare la subscription push (ora prende la VAPID key dal backend)
   async function registraPush() {
@@ -132,6 +136,30 @@ function App() {
     }
   }, []);
 
+  // Effetto per la barra di caricamento
+  React.useEffect(() => {
+    // Barra di caricamento che dura 1.5 minuti (90 secondi)
+    const totalTime = 90000; // 90 secondi
+    const updateInterval = 100; // Aggiorna ogni 100ms
+    const increment = (100 / (totalTime / updateInterval));
+
+    loadingInterval.current = setInterval(() => {
+      setLoadingProgress(prev => {
+        const newProgress = prev + increment;
+        if (newProgress >= 100) {
+          clearInterval(loadingInterval.current);
+          setTimeout(() => setShowLoadingScreen(false), 500); // Aspetta 500ms dopo il 100%
+          return 100;
+        }
+        return newProgress;
+      });
+    }, updateInterval);
+
+    return () => {
+      if (loadingInterval.current) clearInterval(loadingInterval.current);
+    };
+  }, []);
+
   // Controllo backend all'avvio
   React.useEffect(() => {
     let stop = false;
@@ -141,6 +169,10 @@ function App() {
         if (resp.ok) {
           setBackendReady(true);
           setConn('connected');
+          // Se il backend è pronto prima della fine, completa immediatamente la barra
+          setLoadingProgress(100);
+          if (loadingInterval.current) clearInterval(loadingInterval.current);
+          setTimeout(() => setShowLoadingScreen(false), 500);
           return;
         }
       } catch {}
@@ -260,8 +292,8 @@ function App() {
         : `Ultimo utilizzatore: ${stato.famiglia}\nDal: ${formatDate(stato.timestamp)}`)
     : '';
 
-  // Blocca tutto finché il backend non è up
-  if (!backendReady) {
+  // Schermata di caricamento con barra di progresso
+  if (showLoadingScreen) {
     return (
       <div className="App">
         <header className="App-header">
@@ -269,8 +301,8 @@ function App() {
             background: '#222',
             color: '#fff',
             borderRadius: 16,
-            width: 400,
-            height: 220,
+            width: 450,
+            height: 280,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -280,8 +312,42 @@ function App() {
             margin: '0 auto',
             boxShadow: '0 4px 24px #0006',
             position: 'relative',
+            padding: '30px',
           }}>
-            Avvio backend...<br />Potrebbe volerci qualche momento
+            <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+              Avvio backend...<br />
+              <span style={{ fontSize: '18px', color: '#aaa', fontWeight: 'normal' }}>
+                Potrebbe volerci qualche momento
+              </span>
+            </div>
+            
+            {/* Barra di caricamento */}
+            <div style={{
+              width: '100%',
+              height: '8px',
+              backgroundColor: '#333',
+              borderRadius: '4px',
+              overflow: 'hidden',
+              marginBottom: '15px'
+            }}>
+              <div style={{
+                width: `${loadingProgress}%`,
+                height: '100%',
+                backgroundColor: '#4CAF50',
+                borderRadius: '4px',
+                transition: 'width 0.1s ease-out',
+                background: 'linear-gradient(90deg, #4CAF50, #45a049)'
+              }} />
+            </div>
+            
+            {/* Percentuale */}
+            <div style={{
+              fontSize: '16px',
+              color: '#4CAF50',
+              fontWeight: 'bold'
+            }}>
+              {Math.round(loadingProgress)}%
+            </div>
           </div>
         </header>
       </div>
@@ -445,8 +511,8 @@ function App() {
             <span className="notifiche-stato">{notificheAttive ? 'Attive' : 'Spente'}</span>
           </div>
         </div>
-        {/* Card con animazione e contenuto dinamico */}
-        <div className={`giardino-card ${cardGradient} ${(isBooking || bookingConfirmed || stato?.stato === 'occupato') ? 'giardino-card-expanded' : ''} ${(isBooking || bookingConfirmed) ? 'giardino-card-booking' : ''} ${isBooking ? 'giardino-card-loading' : ''} ${bookingConfirmed ? 'giardino-card-success' : ''}`}> 
+        {/* Card centrale grande come nella foto */}
+        <div className={`giardino-card-main ${cardGradient}`}>
           {isBooking ? (
             <>
               <div className="giardino-loader" />
@@ -459,45 +525,37 @@ function App() {
               <div className="giardino-success-icon"><FaCheck /></div>
               <div className="giardino-success-text">Hai prenotato con successo il giardino</div>
               <div className="giardino-info">{cardInfo}</div>
-              {stato?.stato === 'occupato' && stato.famiglia === famigliaSelezionata && (
-                <button
-                  className="giardino-btn libera"
-                  style={{marginTop: 18, width: '90%'}}
-                  onClick={async () => await pubblicaStato('libero')}
-                >
-                  <span style={{marginRight: 8, display: 'flex', alignItems: 'center'}}><FaCheck /></span>Libera Giardino
-                </button>
-              )}
             </>
           ) : (
             <>
               {cardIcon}
               <div className="giardino-title">{cardTitle}</div>
               <div className="giardino-info">{cardInfo}</div>
-              {/* Se occupato e la famiglia è quella giusta, mostra il pulsante dentro la card */}
-              {stato?.stato === 'occupato' && stato.famiglia === famigliaSelezionata && (
-                <button
-                  className="giardino-btn libera"
-                  style={{marginTop: 18, width: '90%'}}
-                  onClick={async () => await pubblicaStato('libero')}
-                >
-                  <span style={{marginRight: 8, display: 'flex', alignItems: 'center'}}><FaCheck /></span>Libera Giardino
-                </button>
-              )}
             </>
           )}
         </div>
-        {/* Se giardino libero, mostra solo il pulsante Occupa sotto la card, ma non durante booking */}
-        {stato && stato.stato === 'libero' && famigliaSelezionata !== 'Visualizzatore' && !isBooking && !bookingConfirmed && (
-          <div className="bottoni-row" style={{marginTop: 12}}>
+        {/* Due pulsanti sempre presenti sotto la card, come nella foto */}
+        {!isBooking && !bookingConfirmed && famigliaSelezionata !== 'Visualizzatore' && (
+          <div className="bottoni-row-main">
             <button
-              className="giardino-btn occupa"
-              onClick={handleOccupa}
+              className={`btn-main btn-occupa ${stato?.stato === 'libero' ? 'enabled' : 'disabled'}`}
+              onClick={stato?.stato === 'libero' ? handleOccupa : undefined}
+              disabled={stato?.stato !== 'libero'}
             >
-              <span style={{marginRight: 8, display: 'flex', alignItems: 'center'}}><FaLeaf /></span>Occupa Giardino
+              <span className="btn-icon"><FaLeaf /></span>
+              Occupa Giardino
+            </button>
+            <button
+              className={`btn-main btn-libera ${stato?.stato === 'occupato' && stato?.famiglia === famigliaSelezionata ? 'enabled' : 'disabled'}`}
+              onClick={stato?.stato === 'occupato' && stato?.famiglia === famigliaSelezionata ? async () => await pubblicaStato('libero') : undefined}
+              disabled={!(stato?.stato === 'occupato' && stato?.famiglia === famigliaSelezionata)}
+            >
+              <span className="btn-icon"><FaCheck /></span>
+              Libera Giardino
             </button>
           </div>
         )}
+
         <div className="mqtt-label">
           <span className="mqtt-dot" /> API: Connesso
         </div>
