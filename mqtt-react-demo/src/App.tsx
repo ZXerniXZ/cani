@@ -481,7 +481,7 @@ function App() {
           )}
         </div>
         {/* Mostra sempre entrambi i pulsanti come nell'immagine target, ma disabilita quelli non applicabili */}
-        {stato && famigliaSelezionata !== 'Visualizzatore' && !isBooking && !bookingConfirmed && (
+        {stato && famigliaSelezionata !== 'Visualizzatore' && !isBooking && (
           <div className="bottoni-row">
             <button
               className="giardino-btn occupa"
