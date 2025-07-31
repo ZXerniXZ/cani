@@ -1,8 +1,14 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import './App.css';
 import { richiediPermessoNotifiche } from './index';
 // Importo le icone da react-icons
 import { FaLock, FaLeaf, FaCheck } from 'react-icons/fa';
+
+// Helper functions per le icone
+const LockIcon = () => React.createElement(FaLock as any, { size: 48 });
+const LeafIcon = () => React.createElement(FaLeaf as any, { size: 48 });
+const CheckIcon = () => React.createElement(FaCheck as any);
+const CheckIconSmall = () => React.createElement(FaCheck as any);
 
 const FAMIGLIE = ['ermes-ben', 'raya', 'Visualizzatore'];
 const PUSH_SERVER_URL = 'https://cani-backend.onrender.com';
@@ -253,13 +259,12 @@ function App() {
   }, [bookingConfirmed, stato]);
 
   // Card stato giardino
-  let cardClass = 'giardino-card';
   let cardGradient = stato && stato.stato === 'occupato'
     ? 'giardino-card-occupato'
     : 'giardino-card-libero';
   let cardIcon = stato && stato.stato === 'occupato'
-    ? <span style={{display: 'block', marginBottom: 12}}><FaLock size={48} /></span>
-    : <span style={{display: 'block', marginBottom: 12}}><FaLeaf size={48} /></span>;
+    ? <span style={{display: 'block', marginBottom: 12}}><LockIcon /></span>
+    : <span style={{display: 'block', marginBottom: 12}}><LeafIcon /></span>;
   let cardTitle = stato && stato.stato === 'occupato' ? 'Giardino occupato' : 'Giardino libero';
   let cardInfo = stato
     ? (stato.stato === 'occupato'
@@ -463,7 +468,7 @@ function App() {
             </>
           ) : bookingConfirmed ? (
             <>
-              <div className="giardino-success-icon"><FaCheck /></div>
+              <div className="giardino-success-icon"><CheckIcon /></div>
               <div className="giardino-success-text">Hai prenotato con successo il giardino</div>
               <div className="giardino-info">{cardInfo}</div>
             </>
@@ -483,14 +488,14 @@ function App() {
               onClick={handleOccupa}
               disabled={stato.stato === 'occupato'}
             >
-              <span style={{marginRight: 8, display: 'flex', alignItems: 'center'}}><FaLeaf /></span>Occupa Giardino
+              <span style={{marginRight: 8, display: 'flex', alignItems: 'center'}}><LeafIcon /></span>Occupa Giardino
             </button>
             <button
               className="giardino-btn libera"
               onClick={async () => await pubblicaStato('libero')}
               disabled={stato.stato === 'libero' || stato.famiglia !== famigliaSelezionata}
             >
-              <span style={{marginRight: 8, display: 'flex', alignItems: 'center'}}><FaCheck /></span>Libera Giardino
+              <span style={{marginRight: 8, display: 'flex', alignItems: 'center'}}><CheckIconSmall /></span>Libera Giardino
             </button>
           </div>
         )}
