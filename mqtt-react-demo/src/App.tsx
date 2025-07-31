@@ -1,12 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import mqtt, { MqttClient } from 'mqtt';
 import './App.css';
 import { richiediPermessoNotifiche } from './index';
 // Importo le icone da react-icons
 import { FaLock, FaLeaf, FaCheck } from 'react-icons/fa';
 
-const MQTT_BROKER = 'wss://test.mosquitto.org:8081';
-const TOPIC = 'giardino/stato';
 const FAMIGLIE = ['ermes-ben', 'raya', 'Visualizzatore'];
 const PUSH_SERVER_URL = 'https://cani-backend.onrender.com';
 
@@ -27,7 +24,6 @@ function App() {
   const [stato, setStato] = useState<StatoGiardino | null>(null);
   const [conn, setConn] = useState<'connecting' | 'connected' | 'error'>('connecting');
   const [notificheAttive, setNotificheAttive] = useState<boolean>(false);
-  const clientRef = useRef<MqttClient | null>(null);
   // Stato per mostrare il pulsante di sblocco dopo 20s
   const [showUnlock, setShowUnlock] = React.useState(false);
   // Stato per attesa backend
@@ -35,6 +31,7 @@ function App() {
   const [isBooking, setIsBooking] = React.useState(false);
   const [bookingConfirmed, setBookingConfirmed] = React.useState(false);
   const bookingTimeout = React.useRef<NodeJS.Timeout | null>(null);
+  const pollingInterval = React.useRef<NodeJS.Timeout | null>(null);
 
   // Funzione per registrare la subscription push (ora prende la VAPID key dal backend)
   async function registraPush() {
@@ -42,7 +39,7 @@ function App() {
       const reg = await navigator.serviceWorker.ready;
       try {
         // Recupera la VAPID public key dal backend
-        const resp = await fetch(PUSH_SERVER_URL + '/vapidPublicKey');
+        const resp = await fetch(PUSH_SERVER_URL + '/api/vapidPublicKey');
         const data = await resp.json();
         const VAPID_PUBLIC_KEY = data.publicKey;
         const sub = await reg.pushManager.subscribe({
@@ -50,7 +47,7 @@ function App() {
           applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
         });
         // Invia la subscription al backend
-        await fetch(PUSH_SERVER_URL + '/subscribe', {
+        await fetch(PUSH_SERVER_URL + '/api/subscribe', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(sub)
@@ -74,7 +71,7 @@ function App() {
         if (subscription) {
           // Notifica il backend della cancellazione
           try {
-            await fetch(PUSH_SERVER_URL + '/unsubscribe', {
+            await fetch(PUSH_SERVER_URL + '/api/unsubscribe', {
               method: 'DELETE',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ endpoint: subscription.endpoint })
@@ -146,9 +143,10 @@ function App() {
     let stop = false;
     async function checkBackend() {
       try {
-        const resp = await fetch(PUSH_SERVER_URL + '/health', { method: 'GET' });
+        const resp = await fetch(PUSH_SERVER_URL + '/api/health', { method: 'GET' });
         if (resp.ok) {
           setBackendReady(true);
+          setConn('connected');
           return;
         }
       } catch {}
@@ -161,35 +159,39 @@ function App() {
   // Ping periodico per tenere sveglio il backend (ogni 5 minuti)
   React.useEffect(() => {
     const interval = setInterval(() => {
-      fetch(PUSH_SERVER_URL + '/health').catch(() => {});
+      fetch(PUSH_SERVER_URL + '/api/health').catch(() => {});
     }, 5 * 60 * 1000); // ogni 5 minuti
     return () => clearInterval(interval);
   }, []);
 
+  // Effetto per la polling del backend per aggiornare lo stato del giardino
   useEffect(() => {
-    const client = mqtt.connect(MQTT_BROKER);
-    clientRef.current = client;
-
-    client.on('connect', () => {
-      setConn('connected');
-      client.subscribe(TOPIC);
-    });
-    client.on('error', () => {
-      setConn('connecting'); // Riprova sempre
-    });
-    client.on('message', (topic, msg) => {
-      if (topic === TOPIC) {
-        try {
-          const data = JSON.parse(msg.toString());
-          if (data.stato && data.famiglia && data.timestamp) {
-            setStato(data);
-          }
-        } catch {}
+    if (!famigliaSelezionata) return;
+    
+    let stopPolling = false;
+    async function pollStato() {
+      if (stopPolling) return;
+      try {
+        const resp = await fetch(`${PUSH_SERVER_URL}/api/stato`);
+        if (resp.ok) {
+          const data = await resp.json();
+          setStato(data);
+          setConn('connected');
+        } else {
+          console.warn('Errore nella polling del stato:', resp.status);
+          setConn('error');
+        }
+      } catch (e) {
+        console.warn('Errore nella polling del stato:', e);
+        setConn('error');
       }
-    });
-    return () => { client.end(); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+      if (!stopPolling) {
+        pollingInterval.current = setTimeout(pollStato, 2000); // Poll ogni 2 secondi
+      }
+    }
+    pollStato();
+    return () => { stopPolling = true; if (pollingInterval.current) clearTimeout(pollingInterval.current); };
+  }, [famigliaSelezionata]);
 
   useEffect(() => {
     if (conn === 'connected' && stato === null) {
@@ -200,24 +202,35 @@ function App() {
     }
   }, [conn, stato]);
 
-  const pubblicaStato = (nuovoStato: 'libero' | 'occupato') => {
-    if (clientRef.current && clientRef.current.connected && famigliaSelezionata) {
-      const payload: StatoGiardino = {
-        stato: nuovoStato,
-        famiglia: famigliaSelezionata,
-        timestamp: Date.now(),
-      };
-      clientRef.current.publish(TOPIC, JSON.stringify(payload), { retain: true });
-      // Aggiornamento ottimistico locale
-      setStato(payload);
+  const pubblicaStato = async (nuovoStato: 'libero' | 'occupato') => {
+    if (famigliaSelezionata) {
+      try {
+        const payload: StatoGiardino = {
+          stato: nuovoStato,
+          famiglia: famigliaSelezionata,
+          timestamp: Date.now(),
+        };
+        const resp = await fetch(`${PUSH_SERVER_URL}/api/stato`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (resp.ok) {
+          setStato(payload);
+        } else {
+          console.warn('Errore nella pubblicazione dello stato:', resp.status);
+        }
+      } catch (e) {
+        console.warn('Errore nella pubblicazione dello stato:', e);
+      }
     }
   };
 
   // Quando clicco Occupa Giardino
-  const handleOccupa = () => {
+  const handleOccupa = async () => {
     setIsBooking(true);
     setBookingConfirmed(false);
-    pubblicaStato('occupato');
+    await pubblicaStato('occupato');
     // Se dopo 10s non arriva conferma, resetta
     if (bookingTimeout.current) clearTimeout(bookingTimeout.current);
     bookingTimeout.current = setTimeout(() => setIsBooking(false), 10000);
@@ -313,16 +326,29 @@ function App() {
   // Schermata di caricamento stato giardino
   if (conn === 'connected' && stato === null) {
     // Funzione per pubblicare uno stato iniziale retained
-    const pubblicaStatoIniziale = () => {
-      if (clientRef.current && clientRef.current.connected) {
-        const payload = {
-          stato: 'libero',
-          famiglia: 'iniziale',
-          timestamp: Date.now(),
+                 const pubblicaStatoIniziale = async () => {
+          if (famigliaSelezionata) {
+            const payload: StatoGiardino = {
+              stato: 'libero' as const,
+              famiglia: famigliaSelezionata,
+              timestamp: Date.now(),
+            };
+            try {
+              const resp = await fetch(`${PUSH_SERVER_URL}/api/stato`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+              if (resp.ok) {
+                setStato(payload);
+              } else {
+                console.warn('Errore nella pubblicazione dello stato iniziale:', resp.status);
+              }
+            } catch (e) {
+              console.warn('Errore nella pubblicazione dello stato iniziale:', e);
+            }
+          }
         };
-        clientRef.current.publish(TOPIC, JSON.stringify(payload), { retain: true });
-      }
-    };
     return (
       <div className="App">
         <header className="App-header">
@@ -444,7 +470,7 @@ function App() {
                 <button
                   className="giardino-btn libera"
                   style={{marginTop: 18, width: '90%'}}
-                  onClick={() => pubblicaStato('libero')}
+                  onClick={async () => await pubblicaStato('libero')}
                 >
                   <span style={{marginRight: 8, display: 'flex', alignItems: 'center'}}><FaCheck /></span>Libera Giardino
                 </button>
@@ -460,7 +486,7 @@ function App() {
                 <button
                   className="giardino-btn libera"
                   style={{marginTop: 18, width: '90%'}}
-                  onClick={() => pubblicaStato('libero')}
+                  onClick={async () => await pubblicaStato('libero')}
                 >
                   <span style={{marginRight: 8, display: 'flex', alignItems: 'center'}}><FaCheck /></span>Libera Giardino
                 </button>
@@ -480,7 +506,7 @@ function App() {
           </div>
         )}
         <div className="mqtt-label">
-          <span className="mqtt-dot" /> MQTT: Connesso
+          <span className="mqtt-dot" /> API: Connesso
         </div>
       </header>
     </div>
